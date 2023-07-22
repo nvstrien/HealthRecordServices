@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "SnomedToSQLite": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\tmp\\hermes\\20230331\\unzip\\SnomedCT_ManagedServiceNL_PRODUCTION_NL1000146_20230331T120000Z\\Full\\Terminology\\sct2_Concept_Full_NL1000146_20230331.txt\"\r\n\"C:\\tmp\\hermes\\20230331\\unzip\\SnomedCT_ManagedServiceNL_PRODUCTION_NL1000146_20230331T120000Z\\Full\\Terminology\\sct2_Description_Full-en_NL1000146_20230331.txt\"\r\n\"C:\\Users\\nvans\\Desktop\\EPD\\SnoMedCT\\Release\\20230331\\unzip\\SnomedCT_ManagedServiceNL_PRODUCTION_NL1000146_20230331T120000Z\\Full\\Terminology\\sct2_Relationship_Full_NL1000146_20230331.txt\""
+    }
+  }
+}
