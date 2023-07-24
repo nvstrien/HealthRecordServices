@@ -15,7 +15,7 @@ A tool to convert SNOMED-CT RF2 release files to a SQLite database.
 
 ## Prerequisites
 
-- .NET 5.0 SDK or later
+- .NET 7.0 SDK or later
 
 ## Usage
 
