@@ -1,11 +1,9 @@
-﻿using System.Runtime;
-using System.Text;
-
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
+using SnomedToSQLite.Menu;
+using SnomedToSQLite.Menu.ConvertRf2ToSQLite;
 using SnomedToSQLite.Services;
 
 using SqliteLibrary;
@@ -34,10 +32,14 @@ namespace SnomedToSQLite
                         })
                         .ConfigureServices((context, services) =>
                         {
+                            services.AddScoped<IFileFinder, FileFinder>();
                             services.AddScoped<IImportService, ImportService>();
                             services.AddScoped<ISQLiteDatabaseService, SQLiteDatabaseService>();
                             services.AddScoped<ISqlDataAccess, SQLiteDataAccess>();
-                            services.AddTransient<Runner>();
+                            services.AddScoped<IConvertRf2ToSQLiteRunner,  ConvertRf2ToSQLiteRunner>();
+                            services.AddSingleton<MenuOptions>();
+                            services.AddSingleton<IMenuOption, ConvertRf2ToSQLiteOption>();
+                            services.AddSingleton<IMenuOption, ExitOption>();
                             //services.Configure<MySettings>(context.Configuration.GetSection("MySettings"));
                             //services.AddSingleton(resolver => resolver.GetRequiredService<IOptions<MySettings>>().Value);
                         })
@@ -46,28 +48,18 @@ namespace SnomedToSQLite
             using var serviceScope = host.Services.CreateScope();
             var services = serviceScope.ServiceProvider;
 
+
             try
             {
-                var runner = services.GetRequiredService<Runner>();
+                var menuOptions = services.GetRequiredService<MenuOptions>();
+                var menu = new MenuUI(menuOptions.GetOrderedMenuOptions());
 
-                //When running in visual studio, set the argument in Debug -> properties.
-
-                if (args.Length > 0)
-                {
-                    await runner.ConvertRf2ToSQLIte(args[0], args[1], args[2]);
-
-                }
-                else
-                {
-                    throw new ArgumentException("Please provide a file path.");
-                }
+                await menu.Run();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Exception: {ex.Message}");
             }
-
-            await host.RunAsync();
         }
     }
 }

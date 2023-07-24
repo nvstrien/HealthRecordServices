@@ -2,21 +2,19 @@
 
 using SnomedToSQLite.Services;
 
-using SqliteLibrary;
-
-namespace SnomedToSQLite
+namespace SnomedToSQLite.Menu.ConvertRf2ToSQLite
 {
-    public class Runner
+    public class ConvertRf2ToSQLiteRunner : IConvertRf2ToSQLiteRunner
     {
         private readonly IImportService _importService;
         private readonly ISQLiteDatabaseService _databaseService;
 
-        public Runner(IImportService importService, ISQLiteDatabaseService databaseService)
+        public ConvertRf2ToSQLiteRunner(IImportService importService, ISQLiteDatabaseService databaseService)
         {
             _importService = importService;
             _databaseService = databaseService;
         }
-               
+
 
         public async Task ConvertRf2ToSQLIte(string fullConceptPath, string fullDescriptionPath, string fullRelationshipPath)
         {
@@ -24,6 +22,20 @@ namespace SnomedToSQLite
 
             await ImportAndWriteConceptData(fullConceptPath);
             await ImportAndWriteDescriptionData(fullDescriptionPath);
+            var relationshipData = ImportRelationshipData(fullRelationshipPath);
+            await WriteRelationshipDataAndGenerateClosure(relationshipData);
+        }
+
+        public async Task ConvertRf2ToSQLIte(string fullConceptPath, List<string> fullDescriptionPaths, string fullRelationshipPath)
+        {
+            _databaseService.CreateSnowMedSQLiteDb(@"R:\SnowMed.db");
+
+            await ImportAndWriteConceptData(fullConceptPath);
+
+            foreach (var item in fullDescriptionPaths)
+            {
+                await ImportAndWriteDescriptionData(item);
+            }
             var relationshipData = ImportRelationshipData(fullRelationshipPath);
             await WriteRelationshipDataAndGenerateClosure(relationshipData);
         }

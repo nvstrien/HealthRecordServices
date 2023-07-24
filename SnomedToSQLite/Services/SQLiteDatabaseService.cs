@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
 
@@ -127,6 +122,10 @@ namespace SnomedToSQLite.Services
             _logger.LogInformation("Creating indexes");
             await CreateIndexes("Default");
             _logger.LogInformation("Creating indexes - completed");
+
+            _logger.LogInformation("Creating views");
+            await CreateViews("Default");
+            _logger.LogInformation("Creating views - completed");
         }
 
         private async Task CreateIndexes(string connectionStringName)
@@ -141,6 +140,19 @@ namespace SnomedToSQLite.Services
             };
 
             foreach (var sql in indexCommands)
+            {
+                await _db.SaveData(sql, new { }, connectionStringName);
+            }
+        }
+
+        private async Task CreateViews(string connectionStringName)
+        {
+            string[] sqlCommands = new string[]
+            {
+        "CREATE VIEW Subsumption AS SELECT tc.SourceId, ds.Term as SourceTerm, tc.DestinationId, dt.Term as TargetTerm FROM TransitiveClosure tc LEFT JOIN Description ds ON tc.SourceId = ds.ConceptId LEFT JOIN Description dt ON tc.DestinationId = dt.ConceptId;",
+            };
+
+            foreach (var sql in sqlCommands)
             {
                 await _db.SaveData(sql, new { }, connectionStringName);
             }
