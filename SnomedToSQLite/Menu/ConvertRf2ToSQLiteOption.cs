@@ -64,6 +64,7 @@ namespace SnomedToSQLite.Menu
                 }
             }
 
+            Console.Clear();
             return true;
         }
 
@@ -79,16 +80,22 @@ namespace SnomedToSQLite.Menu
             string relationshipPath = _fileFinder.FindFileInDirectory(rootFilePath, "*Relationship_Full*.txt");
 
             _logger.LogInformation("\nStarting conversion process...");
-            _logger.LogInformation("\nFiles found for conversion:");
+            _logger.LogInformation("\n\n---------------------------");
+            _logger.LogInformation("Files found for conversion:");
             _logger.LogInformation("\nConcept file: {conceptPath}", conceptPath);
+            _logger.LogInformation("\n\n---------------------------");
             _logger.LogInformation("\nDescription files:");
             foreach (var descriptionPath in descriptionPaths)
             {
                 _logger.LogInformation(descriptionPath);
             }
+            _logger.LogInformation("\n\n---------------------------");
             _logger.LogInformation("\nRelationship file: {relationshipPath}", relationshipPath);
 
+
             await _runner.ConvertRf2ToSQLIte(rootFilePath, conceptPath, descriptionPaths, relationshipPath);
+            
+
             _logger.LogInformation("\nConversion completed successfully!");
         }
     }

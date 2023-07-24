@@ -36,7 +36,7 @@ namespace SnomedToSQLite.Services
                 {
                     // Try to delete the file
                     File.Delete(path);
-                    Console.WriteLine($"Existing file {path} deleted.");
+                    Console.WriteLine($"\nExisting file {path} deleted.");
                 }
                 catch (IOException ex)
                 {
@@ -78,35 +78,40 @@ namespace SnomedToSQLite.Services
             return true;
         }
 
-        public async Task GenerateTransitiveClosureTable(IEnumerable<RelationshipModel> relationships)
+        public async Task GenerateTransitiveClosureTable(IEnumerable<RelationshipModel> relationships, ShellProgressBar.IProgressBar pbar)
         {
-            _logger.LogInformation("Creating Adjacency Matrix");
+            pbar.Message = "Creating Adjacency Matrix";
             var stopwatch = Stopwatch.StartNew();
             var adjacencyMatrix = CreateAdjacencyMatrix(relationships);
             stopwatch.Stop();
-            _logger.LogInformation("Creating Adjacency Matrix took {ElapsedMilliseconds} milliseconds", stopwatch.ElapsedMilliseconds);
+            pbar.Tick($"Creating Adjacency Matrix took {stopwatch.ElapsedMilliseconds} milliseconds");
+            await Task.Delay(500);
 
-            _logger.LogInformation("Computing Transitive Closure table (Parallel)");
+            pbar.Message = "Computing Transitive Closure table (Parallel)";
             stopwatch.Restart();
             var transitiveClosureParallel = ComputeTransitiveClosureParallel(adjacencyMatrix);
             stopwatch.Stop();
-            _logger.LogInformation("Computing Transitive Closure table (Parallel) took {ElapsedMilliseconds} milliseconds", stopwatch.ElapsedMilliseconds);
+            pbar.Tick($"Computing Transitive Closure table (Parallel) took {stopwatch.ElapsedMilliseconds} milliseconds");
+            await Task.Delay(500);
 
-            _logger.LogInformation("Creating Transitive Closure table in SQLite database");
+            pbar.Message = "Creating Transitive Closure table in SQLite database";
             await CreateTransitiveClosureTable("Default");
+            await Task.Delay(500);
 
-            _logger.LogInformation("Write to Transitive Closure table in SQLite database");
+            pbar.Message = "Write to Transitive Closure table in SQLite database";
             await WriteTransitiveClosureToDB(transitiveClosureParallel, "Default");
-            _logger.LogInformation("Write to Transitive Closure table in SQLite database - completed");
+            pbar.Tick("Write to Transitive Closure table in SQLite database - completed");
+            await Task.Delay(500);
 
-
-            _logger.LogInformation("Creating indexes");
+            pbar.Message = "Creating indexes";
             await CreateIndexes("Default");
-            _logger.LogInformation("Creating indexes - completed");
+            pbar.Tick("Creating indexes - completed");
+            await Task.Delay(500);
 
-            _logger.LogInformation("Creating views");
+            pbar.Message = "Creating views";
             await CreateViews("Default");
-            _logger.LogInformation("Creating views - completed");
+            pbar.Tick("Creating views - completed");
+            await Task.Delay(500);
         }
 
         private async Task CreateIndexes(string connectionStringName)
