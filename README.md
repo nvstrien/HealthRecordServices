@@ -1,7 +1,3 @@
-Certainly, here's the updated README with the SQL examples:
-
----
-
 # SNOMED2SQLITE
 
 A tool to convert SNOMED-CT RF2 release files to a SQLite database.
