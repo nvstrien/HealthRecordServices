@@ -28,15 +28,6 @@ A tool to convert SNOMED-CT RF2 release files to a SQLite database.
 
 The console will guide you through the process. You need to provide the path to your RF2 release files when prompted. These files are not included in the distribution (see: https://www.snomed.org/get-snomed if you don't have them already).
 
-### As a library
-
-You can also use this project as a library in your own .NET project. Simply add a reference to the SnomedToSQLite project, and you can call its public methods in your own code.
-
-```csharp
-var converter = new SnomedToSQLiteConverter();
-await converter.ConvertRf2ToSQLite("path/to/your/rf2/files");
-```
-
 ## Contributing
 
 Contributions are welcome! Please read the [contributing guide](CONTRIBUTING.md) to get started.
