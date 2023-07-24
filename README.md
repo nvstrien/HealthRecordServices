@@ -69,7 +69,7 @@ AND dt.LanguageCode = "nl"
 AND SourceTerm LIKE "%depr%"
 GROUP BY SourceTerm
 ```
-Note: You can view the contents of the SQLite database using a SQLite database viewer such as [DB Browser for SQLite](https://sqlitebrowser.org/).
+Note: You can view the contents of the SQLite database and execute queries using a SQLite database viewer such as [DB Browser for SQLite](https://sqlitebrowser.org/).
 
 ## Contributing
 
