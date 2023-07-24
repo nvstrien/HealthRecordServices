@@ -35,22 +35,3 @@
         Task SaveData<T>(string storedProcedure, T parameters, string connectionStringName);
     }
 }
-
-//Both QuerySingleOrDefaultAsync and ExecuteScalarAsync are methods provided by Dapper that can be used to execute SQL statements and retrieve a single value from the result set. However, they have some differences in how they work:
-
-//    Return value:
-
-//    QuerySingleOrDefaultAsync returns a single value of a specified type from the result set, or a default value if the result set is empty.
-//    ExecuteScalarAsync returns a single value of a specified type from the first row of the first column of the result set, or a default value if the result set is empty.
-
-//    Usage:
-
-//    QuerySingleOrDefaultAsync is typically used when you want to retrieve a single value from a result set that may contain multiple rows or columns. For example, you might use this method to retrieve the count of records that match a certain condition in a table.
-//    ExecuteScalarAsync is typically used when you want to retrieve a single value from a specific column in a specific row. For example, you might use this method to retrieve the primary key value of a newly inserted record.
-
-//    Input parameters:
-
-//    QuerySingleOrDefaultAsync takes an SQL statement or stored procedure name, parameters to be passed to the query, and optionally a command type (e.g., Text, StoredProcedure, TableDirect).
-//    ExecuteScalarAsync takes an SQL statement or stored procedure name, parameters to be passed to the query, and optionally a command type (e.g., Text, StoredProcedure, TableDirect).
-
-//In general, if you want to retrieve a single value from a result set that may contain multiple rows or columns, use QuerySingleOrDefaultAsync. If you want to retrieve a single value from a specific column in a specific row, use ExecuteScalarAsync.

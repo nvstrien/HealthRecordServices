@@ -13,11 +13,13 @@ namespace SqliteLibrary
     {
         private readonly IConfiguration _config;
         private readonly ILogger<SQLiteDataAccess> _logger;
+        private readonly IConnectionStringService _connectionStringService;
 
-        public SQLiteDataAccess(IConfiguration config, ILogger<SQLiteDataAccess> logger)
+        public SQLiteDataAccess(IConfiguration config, ILogger<SQLiteDataAccess> logger, IConnectionStringService connectionStringService)
         {
             _config = config;
             _logger = logger;
+            _connectionStringService = connectionStringService;
         }
 
         /// <summary>
@@ -36,7 +38,8 @@ namespace SqliteLibrary
             try
             {
                 // Retrieve the connection string from the configuration.
-                string? connectionString = _config.GetConnectionString(connectionStringName);
+                //string? connectionString = _config.GetConnectionString(connectionStringName);
+                string? connectionString = _connectionStringService.GetConnectionString();
 
                 // Validate the connection string.
                 if (string.IsNullOrEmpty(connectionString))
@@ -74,7 +77,8 @@ namespace SqliteLibrary
             try
             {
                 // Get the connection string from the configuration.
-                string? connectionString = _config.GetConnectionString(connectionStringName);
+                //string? connectionString = _config.GetConnectionString(connectionStringName);
+                string? connectionString = _connectionStringService.GetConnectionString();
 
                 if (string.IsNullOrEmpty(connectionString))
                 {
@@ -125,7 +129,8 @@ namespace SqliteLibrary
         /// <returns>A <see cref="Task"/> representing the asynchronous insert operation, which returns a collection of the IDs of the inserted records.</returns>
         public async Task<IEnumerable<int>> InsertData<T>(string sql, IEnumerable<T> data, string connectionStringName)
         {
-            string? connectionString = _config.GetConnectionString(connectionStringName);
+            //string? connectionString = _config.GetConnectionString(connectionStringName);
+            string? connectionString = _connectionStringService.GetConnectionString();
 
             if (string.IsNullOrEmpty(connectionString))
             {
@@ -166,55 +171,10 @@ namespace SqliteLibrary
             }
         }
 
-        //public async Task<IEnumerable<int>> InsertData<T>(string sql, IEnumerable<T> data, string connectionStringName)
-        //{
-        //    // Get the connection string from the configuration.
-        //    string? connectionString = _config.GetConnectionString(connectionStringName);
-
-        //    if (string.IsNullOrEmpty(connectionString))
-        //    {
-        //        // Throw an ArgumentException if the connection string is null or empty.
-        //        throw new ArgumentException("Connection string cannot be null or empty.", nameof(connectionStringName));
-        //    }
-
-        //    // Create a new SQLite connection using the connection string, and open it.
-        //    using IDbConnection connection = new SQLiteConnection(connectionString);
-        //    connection.Open();
-
-        //    // Begin a new transaction.
-        //    using IDbTransaction transaction = connection.BeginTransaction();
-
-        //    try
-        //    {
-        //        // Create a list to store the IDs of the inserted records.
-        //        List<int> insertedIds = new List<int>();
-
-        //        // Loop over each item in the data collection and insert it into the database.
-        //        int iteration = 0;
-        //        foreach (T item in data)
-        //        {
-        //            int insertedId = await connection.ExecuteScalarAsync<int>(sql, item, transaction).ConfigureAwait(false);
-        //            insertedIds.Add(insertedId);
-        //            iteration++;
-        //        }
-
-        //        // Commit the transaction and return the list of inserted IDs.
-        //        transaction.Commit();
-        //        return insertedIds;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        // Roll back the transaction, log the exception, and re-throw it.
-        //        transaction.Rollback();
-        //        _logger.LogError(ex, "The SQLite operation failed with {query}, {message}", sql, ex.Message);
-        //        throw new Exception(ex.Message, ex);
-        //    }
-        //}
-
-
         public async Task<bool> DeleteData(string connectionStringName, string tableName, string columnName, int id)
         {
-            string? connectionString = _config.GetConnectionString(connectionStringName);
+            //string? connectionString = _config.GetConnectionString(connectionStringName);
+            string? connectionString = _connectionStringService.GetConnectionString();
 
             if (string.IsNullOrEmpty(connectionString))
             {

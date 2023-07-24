@@ -39,7 +39,7 @@ namespace SnomedToSQLite
                             services.AddScoped<IConvertRf2ToSQLiteRunner,  ConvertRf2ToSQLiteRunner>();
                             services.AddSingleton<MenuOptions>();
                             services.AddSingleton<IMenuOption, ConvertRf2ToSQLiteOption>();
-                            services.AddSingleton<IMenuOption, ExitOption>();
+                            services.AddSingleton<IConnectionStringService,  ConnectionStringService>();
                             //services.Configure<MySettings>(context.Configuration.GetSection("MySettings"));
                             //services.AddSingleton(resolver => resolver.GetRequiredService<IOptions<MySettings>>().Value);
                         })

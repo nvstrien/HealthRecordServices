@@ -80,30 +80,11 @@ namespace SnomedToSQLite.Services
 
         public async Task GenerateTransitiveClosureTable(IEnumerable<RelationshipModel> relationships)
         {
-            //string sql = "SELECT * FROM Relationships";
-            //var relationships = await _db.LoadData<RelationshipModel, dynamic>(sql, new { }, "Default");
-
-            //_logger.LogInformation("Creating Adjacency Matrix");
-            //var adjacencyMatrix = CreateAdjacencyMatrix(relationships);
-
-            //_logger.LogInformation("Computing Transitive Closure table");
-            //var transitiveClosure = ComputeTransitiveClosure(adjacencyMatrix);
-
-
-            //await WriteTransitiveClosureToDB(transitiveClosure);
-
-
             _logger.LogInformation("Creating Adjacency Matrix");
             var stopwatch = Stopwatch.StartNew();
             var adjacencyMatrix = CreateAdjacencyMatrix(relationships);
             stopwatch.Stop();
             _logger.LogInformation("Creating Adjacency Matrix took {ElapsedMilliseconds} milliseconds", stopwatch.ElapsedMilliseconds);
-
-            //_logger.LogInformation("Computing Transitive Closure table (Sequential)");
-            //stopwatch.Restart();
-            //var transitiveClosure = ComputeTransitiveClosure(adjacencyMatrix);
-            //stopwatch.Stop();
-            //_logger.LogInformation("Computing Transitive Closure table (Sequential) took {ElapsedMilliseconds} milliseconds", stopwatch.ElapsedMilliseconds);
 
             _logger.LogInformation("Computing Transitive Closure table (Parallel)");
             stopwatch.Restart();
@@ -132,11 +113,11 @@ namespace SnomedToSQLite.Services
         {
             string[] indexCommands = new string[]
             {
-        "CREATE INDEX IF NOT EXISTS idx_relationship_sourceid ON Relationship(SourceId);",
-        "CREATE INDEX IF NOT EXISTS idx_relationship_destinationid ON Relationship(DestinationId);",
-        "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_sourceid ON TransitiveClosure(SourceId);",
-        "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_destinationid ON TransitiveClosure(DestinationId);",
-        "CREATE INDEX IF NOT EXISTS idx_description_conceptid ON Description(ConceptId);"
+                "CREATE INDEX IF NOT EXISTS idx_relationship_sourceid ON Relationship(SourceId);",
+                "CREATE INDEX IF NOT EXISTS idx_relationship_destinationid ON Relationship(DestinationId);",
+                "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_sourceid ON TransitiveClosure(SourceId);",
+                "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_destinationid ON TransitiveClosure(DestinationId);",
+                "CREATE INDEX IF NOT EXISTS idx_description_conceptid ON Description(ConceptId);"
             };
 
             foreach (var sql in indexCommands)
@@ -149,7 +130,7 @@ namespace SnomedToSQLite.Services
         {
             string[] sqlCommands = new string[]
             {
-        "CREATE VIEW Subsumption AS SELECT tc.SourceId, ds.Term as SourceTerm, tc.DestinationId, dt.Term as TargetTerm FROM TransitiveClosure tc LEFT JOIN Description ds ON tc.SourceId = ds.ConceptId LEFT JOIN Description dt ON tc.DestinationId = dt.ConceptId;",
+                "CREATE VIEW Subsumption AS SELECT tc.SourceId, ds.Term as SourceTerm, tc.DestinationId, dt.Term as TargetTerm FROM TransitiveClosure tc LEFT JOIN Description ds ON tc.SourceId = ds.ConceptId LEFT JOIN Description dt ON tc.DestinationId = dt.ConceptId;",
             };
 
             foreach (var sql in sqlCommands)
@@ -245,7 +226,6 @@ namespace SnomedToSQLite.Services
             return transitiveClosure;
         }
 
-
         public Dictionary<long, HashSet<long>> ComputeTransitiveClosureParallel(Dictionary<long, Dictionary<long, long>> adjacencyMatrix)
         {
             var transitiveClosure = new ConcurrentDictionary<long, HashSet<long>>();
@@ -277,61 +257,5 @@ namespace SnomedToSQLite.Services
 
             return transitiveClosure.ToDictionary(kvp => kvp.Key, kvp => new HashSet<long>(kvp.Value));
         }
-
-
-        //public Dictionary<long, HashSet<long>> CreateAdjacencyMatrix(IEnumerable<RelationshipModel> relationships)
-        //{
-        //    var adjacencyMatrix = new Dictionary<long, HashSet<long>>();
-
-        //    foreach (var relationship in relationships)
-        //    {
-        //        if (adjacencyMatrix.ContainsKey(relationship.SourceId))
-        //        {
-        //            adjacencyMatrix[relationship.SourceId].Add(relationship.DestinationId);
-        //        }
-        //        else
-        //        {
-        //            adjacencyMatrix[relationship.SourceId] = new HashSet<long> { relationship.DestinationId };
-        //        }
-        //    }
-
-        //    return adjacencyMatrix;
-        //}
-
-        //public Dictionary<long, HashSet<long>> ComputeTransitiveClosure(Dictionary<long, HashSet<long>> adjacencyMatrix)
-        //{
-
-
-        //    var transitiveClosure = new Dictionary<long, HashSet<long>>(adjacencyMatrix);
-
-        //    foreach (var node in adjacencyMatrix.Keys)
-        //    {
-        //        if (!transitiveClosure.ContainsKey(node))
-        //            continue;
-
-        //        var queue = new Queue<long>(transitiveClosure[node]);
-        //        while (queue.Any())
-        //        {
-        //            var nextNode = queue.Dequeue();
-        //            if (transitiveClosure.ContainsKey(nextNode))
-        //            {
-        //                foreach (var transitNode in transitiveClosure[nextNode])
-        //                {
-        //                    if (!transitiveClosure[node].Contains(transitNode))
-        //                    {
-        //                        transitiveClosure[node].Add(transitNode);
-        //                        queue.Enqueue(transitNode);
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-
-        //    return transitiveClosure;
-        //}
-
-
-
-
     }
 }
