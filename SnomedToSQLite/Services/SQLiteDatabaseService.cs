@@ -169,7 +169,11 @@ namespace SnomedToSQLite.Services
                 "CREATE INDEX IF NOT EXISTS idx_relationship_destinationid ON Relationship(DestinationId);",
                 "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_sourceid ON TransitiveClosure(SourceId);",
                 "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_destinationid ON TransitiveClosure(DestinationId);",
-                "CREATE INDEX IF NOT EXISTS idx_description_conceptid ON Description(ConceptId);"
+                "CREATE INDEX IF NOT EXISTS idx_description_conceptid ON Description(ConceptId);",
+                "CREATE INDEX IF NOT EXISTS idx_description_id ON Description (Id ASC)",
+                "CREATE INDEX IF NOT EXISTS idx_description_term ON Description (Term ASC)",
+                "CREATE INDEX IF NOT EXISTS idx_langrefset_acceptabilityId ON LanguageRefset (AcceptabilityId ASC)",
+                "CREATE INDEX IF NOT EXISTS idx_langrefset_referencedcomponentid ON LanguageRefset (ReferencedComponentId ASC)",
             };
 
             foreach (var sql in indexCommands)

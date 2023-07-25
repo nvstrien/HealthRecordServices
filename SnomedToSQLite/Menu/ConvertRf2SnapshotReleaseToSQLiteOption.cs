@@ -7,34 +7,31 @@ using static SnomedRF2Library.Enums.Enumeration;
 
 namespace SnomedToSQLite.Menu
 {
-    public class ConvertRf2FullReleaseToSQLiteOption : IMenuOption
+    internal class ConvertRf2SnapshotReleaseToSQLiteOption : IMenuOption
     {
         private readonly IConversionHelper _conversionHelper;
+        private readonly ILogger<ConvertRf2SnapshotReleaseToSQLiteOption> _logger;
         private readonly IConvertRf2ToSQLiteRunner _runner;
-        private readonly IFileFinder _fileFinder;
-        private readonly ILogger<ConvertRf2FullReleaseToSQLiteOption> _logger;
 
-        public ConvertRf2FullReleaseToSQLiteOption(
+        public ConvertRf2SnapshotReleaseToSQLiteOption(
             IConversionHelper conversionHelper,
-            IConvertRf2ToSQLiteRunner runner, 
-            IFileFinder fileFinder, 
-            ILogger<ConvertRf2FullReleaseToSQLiteOption> logger)
+            ILogger<ConvertRf2SnapshotReleaseToSQLiteOption> logger,
+            IConvertRf2ToSQLiteRunner runner)
         {
             _conversionHelper = conversionHelper;
-            _runner = runner;
-            _fileFinder = fileFinder;
             _logger = logger;
+            _runner = runner;
         }
 
-        public string Description => "Convert RF2 Full release to SQLite (only imports the data tables)";
+        public string Description => "Convert RF2 Snapshot release to SQLite (imports data tables + creates transitive closure table)";
 
         public async Task<bool> ExecuteAsync()
         {
             while (true)
             {
                 Console.Clear();
-                _conversionHelper.WriteColoredMessage("RF2 Full Release to SQLite converter:\n------------------------\n", ConsoleColor.Green);
-                _conversionHelper.WriteColoredMessage("Enter the root path of the Full release files or type 'exit' to go back to the main menu:\n", ConsoleColor.White);
+                _conversionHelper.WriteColoredMessage("RF2 Snapshot Release to SQLite converter:\n------------------------\n", ConsoleColor.Green);
+                _conversionHelper.WriteColoredMessage("Enter the root path of the Snapshot release files or type 'exit' to go back to the main menu:\n", ConsoleColor.White);
 
                 var rootFilePath = Console.ReadLine()?.Trim('"');
 
@@ -47,7 +44,7 @@ namespace SnomedToSQLite.Menu
                 {
                     try
                     {
-                        await _runner.ExecuteConversion(rootFilePath, ConversionType.FullConversion);
+                        await _runner.ExecuteConversion(rootFilePath, ConversionType.SnapshotConversion);
                         break;
                     }
                     catch (Exception ex)
