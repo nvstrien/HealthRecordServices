@@ -11,18 +11,15 @@ namespace SnomedToSQLite.Menu
     {
         private readonly IConversionHelper _conversionHelper;
         private readonly IConvertRf2ToSQLiteRunner _runner;
-        private readonly IFileFinder _fileFinder;
         private readonly ILogger<ConvertRf2FullReleaseToSQLiteOption> _logger;
 
         public ConvertRf2FullReleaseToSQLiteOption(
             IConversionHelper conversionHelper,
             IConvertRf2ToSQLiteRunner runner, 
-            IFileFinder fileFinder, 
             ILogger<ConvertRf2FullReleaseToSQLiteOption> logger)
         {
             _conversionHelper = conversionHelper;
             _runner = runner;
-            _fileFinder = fileFinder;
             _logger = logger;
         }
 

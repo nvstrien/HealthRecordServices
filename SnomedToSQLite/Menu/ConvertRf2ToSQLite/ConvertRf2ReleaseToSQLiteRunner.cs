@@ -93,7 +93,7 @@ namespace SnomedToSQLite.Menu.ConvertRf2ToSQLite
             var concepts = await ImportAndWriteConceptData(fullConceptPath, pbar);
             pbar.Tick("Concept data processed successfully.");
 
-            List<DescriptionModel> descriptions = new List<DescriptionModel>();
+            List<DescriptionModel> descriptions = new();
             foreach (var item in fullDescriptionPaths)
             {
                 pbar.Message = $"Starting import and write process for description data from {item}...";
@@ -106,7 +106,7 @@ namespace SnomedToSQLite.Menu.ConvertRf2ToSQLite
             var relationshipData = ImportRelationshipData(fullRelationshipPath, pbar);
             pbar.Tick("Relationship data imported successfully.");
 
-            List<LanguageRefsetModel> languageRefsets = new List<LanguageRefsetModel>();
+            List<LanguageRefsetModel> languageRefsets = new();
             foreach (var item in languageRefsetPaths)
             {
                 pbar.Message = $"Starting import and write process for language refset data from {item}...";

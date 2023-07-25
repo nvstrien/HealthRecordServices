@@ -13,9 +13,9 @@ namespace SnomedToSQLite.Services
         private const long _synonymTypeId = 900000000000013009; // |Synonym|
         
         //Refset properties
-        private const long _nlRefsetId = 31000146106;
-        private const long _enGBRefsetId = 900000000000508004;
-        private const long _enUSRefsetId = 900000000000509007;
+        //private const long _nlRefsetId = 31000146106;
+        //private const long _enGBRefsetId = 900000000000508004;
+        //private const long _enUSRefsetId = 900000000000509007;
         private const long _acceptabilityId = 900000000000548007; // | Preferred|
 
         public Dictionary<long, Dictionary<long, long>> CreateAdjacencyMatrix(IEnumerable<RelationshipModel> relationships)
@@ -138,21 +138,37 @@ namespace SnomedToSQLite.Services
             }
         }
 
+        /// <summary>
+        /// Computes the transitive closure of an adjacency matrix using a breadth-first search.
+        /// </summary>
+        /// <param name="adjacencyMatrix">The adjacency matrix represented as a Dictionary.</param>
+        /// <returns>Returns the transitive closure represented as a Dictionary.</returns>
         public Dictionary<long, HashSet<long>> ComputeTransitiveClosure(Dictionary<long, Dictionary<long, long>> adjacencyMatrix)
         {
+            // Initialize the transitive closure as an empty dictionary.
             var transitiveClosure = new Dictionary<long, HashSet<long>>();
 
+            // Iterate over all nodes in the adjacency matrix.
             foreach (var node in adjacencyMatrix.Keys)
             {
+                // If the current node is not yet in the transitive closure, add it.
                 if (!transitiveClosure.ContainsKey(node))
                     transitiveClosure[node] = new HashSet<long>();
 
+                // Initialize a queue with the successors of the current node.
                 var queue = new Queue<long>(adjacencyMatrix[node].Keys);
+
+                // While there are nodes in the queue...
                 while (queue.Any())
                 {
+                    // Dequeue the next node.
                     var nextNode = queue.Dequeue();
+
+                    // If the dequeued node is in the adjacency matrix...
                     if (adjacencyMatrix.ContainsKey(nextNode))
                     {
+                        // Add all of its successors to the transitive closure of the current node,
+                        // and enqueue them for further processing.
                         foreach (var transitNode in adjacencyMatrix[nextNode].Keys)
                         {
                             if (!transitiveClosure[node].Contains(transitNode))
@@ -165,25 +181,41 @@ namespace SnomedToSQLite.Services
                 }
             }
 
+            // Return the computed transitive closure.
             return transitiveClosure;
         }
 
+        /// <summary>
+        /// Computes the transitive closure of an adjacency matrix using a parallel breadth-first search.
+        /// </summary>
+        /// <param name="adjacencyMatrix">The adjacency matrix represented as a Dictionary.</param>
+        /// <returns>Returns the transitive closure represented as a Dictionary.</returns>
         public Dictionary<long, HashSet<long>> ComputeTransitiveClosureParallel(Dictionary<long, Dictionary<long, long>> adjacencyMatrix)
         {
+            // Initialize the transitive closure as a concurrent dictionary to allow parallel updates.
             var transitiveClosure = new ConcurrentDictionary<long, HashSet<long>>();
 
+            // Process all nodes in the adjacency matrix in parallel.
             Parallel.ForEach(adjacencyMatrix.Keys, node =>
             {
+                // If the current node is not yet in the transitive closure, add it.
                 if (!transitiveClosure.ContainsKey(node))
                     transitiveClosure[node] = new HashSet<long>();
 
+                // Initialize a concurrent queue with the successors of the current node.
                 var queue = new ConcurrentQueue<long>(adjacencyMatrix[node].Keys);
+
+                // While there are nodes in the queue...
                 while (!queue.IsEmpty)
                 {
+                    // Attempt to dequeue the next node.
                     if (queue.TryDequeue(out var nextNode))
                     {
+                        // If the dequeued node is in the adjacency matrix...
                         if (adjacencyMatrix.TryGetValue(nextNode, out var transitNodes))
                         {
+                            // Add all of its successors to the transitive closure of the current node,
+                            // and enqueue them for further processing.
                             foreach (var transitNode in transitNodes.Keys)
                             {
                                 if (!transitiveClosure[node].Contains(transitNode))
@@ -197,7 +229,9 @@ namespace SnomedToSQLite.Services
                 }
             });
 
+            // Convert the concurrent dictionary back to a regular dictionary for the result.
             return transitiveClosure.ToDictionary(kvp => kvp.Key, kvp => new HashSet<long>(kvp.Value));
         }
+
     }
 }
