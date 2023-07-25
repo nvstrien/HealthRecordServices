@@ -5,20 +5,20 @@ using SnomedToSQLite.Services;
 
 namespace SnomedToSQLite.Menu
 {
-    public class ConvertRf2ToSQLiteOption : IMenuOption
+    public class ConvertRf2FullReleaseToSQLiteOption : IMenuOption
     {
         private readonly IConvertRf2ToSQLiteRunner _runner;
         private readonly IFileFinder _fileFinder;
-        private readonly ILogger<ConvertRf2ToSQLiteOption> _logger;
+        private readonly ILogger<ConvertRf2FullReleaseToSQLiteOption> _logger;
 
-        public ConvertRf2ToSQLiteOption(IConvertRf2ToSQLiteRunner runner, IFileFinder fileFinder, ILogger<ConvertRf2ToSQLiteOption> logger)
+        public ConvertRf2FullReleaseToSQLiteOption(IConvertRf2ToSQLiteRunner runner, IFileFinder fileFinder, ILogger<ConvertRf2FullReleaseToSQLiteOption> logger)
         {
             _runner = runner;
             _fileFinder = fileFinder;
             _logger = logger;
         }
 
-        public string Description => "Convert RF2 to SQLite";
+        public string Description => "Convert RF2 Full release to SQLite";
 
         public async Task<bool> ExecuteAsync()
         {
@@ -78,22 +78,33 @@ namespace SnomedToSQLite.Menu
             string conceptPath = _fileFinder.FindFileInDirectory(rootFilePath, "*Concept_Full*.txt");
             List<string> descriptionPaths = _fileFinder.FindFilesInDirectory(rootFilePath, "*Description_Full*.txt");
             string relationshipPath = _fileFinder.FindFileInDirectory(rootFilePath, "*Relationship_Full*.txt");
+            List<string> languageRefsetPaths = _fileFinder.FindFilesInDirectory(rootFilePath, "*LanguageFull*.txt");
 
             _logger.LogInformation("\nStarting conversion process...");
             _logger.LogInformation("\n\n---------------------------");
+
             _logger.LogInformation("Files found for conversion:");
             _logger.LogInformation("\nConcept file: {conceptPath}", conceptPath);
             _logger.LogInformation("\n\n---------------------------");
+
             _logger.LogInformation("\nDescription files:");
             foreach (var descriptionPath in descriptionPaths)
             {
                 _logger.LogInformation(descriptionPath);
             }
             _logger.LogInformation("\n\n---------------------------");
+
             _logger.LogInformation("\nRelationship file: {relationshipPath}", relationshipPath);
 
+            _logger.LogInformation("\nLanguage Refset files:");
+            foreach (var languagePath in languageRefsetPaths)
+            {
+                _logger.LogInformation(languagePath);
+            }
+            _logger.LogInformation("\n\n---------------------------");
 
-            await _runner.ConvertRf2ToSQLIte(rootFilePath, conceptPath, descriptionPaths, relationshipPath);
+
+            await _runner.ConvertRf2ToSQLIte(rootFilePath, conceptPath, descriptionPaths, relationshipPath, languageRefsetPaths);
             
 
             _logger.LogInformation("\nConversion completed successfully!");

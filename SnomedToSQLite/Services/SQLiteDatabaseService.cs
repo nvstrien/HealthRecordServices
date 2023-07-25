@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using Microsoft.Extensions.Logging;
 
@@ -13,11 +12,13 @@ namespace SnomedToSQLite.Services
     {
         private readonly ISqlDataAccess _db;
         private readonly ILogger<SQLiteDatabaseService> _logger;
+        private readonly IGraphProcessingService _graphProcessingService;
 
-        public SQLiteDatabaseService(ISqlDataAccess db, ILogger<SQLiteDatabaseService> logger)
+        public SQLiteDatabaseService(ISqlDataAccess db, ILogger<SQLiteDatabaseService> logger, IGraphProcessingService graphProcessingService)
         {
             _db = db;
             _logger = logger;
+            _graphProcessingService = graphProcessingService;
         }
 
         public void CreateSnowMedSQLiteDb(string path)
@@ -46,7 +47,7 @@ namespace SnomedToSQLite.Services
             }
 
             // Call the CreateSQLiteDatabase method to create the new database
-            SQLiteDBHelper.CreateSQLiteDatabase(path, typeof(ConceptModel), typeof(DescriptionModel), typeof(RelationshipModel));
+            SQLiteDBHelper.CreateSQLiteDatabase(path, typeof(ConceptModel), typeof(DescriptionModel), typeof(RelationshipModel), typeof(LanguageRefsetModel));
         }
 
         public async Task<bool> WriteConceptData(IEnumerable<ConceptModel> data)
@@ -78,18 +79,64 @@ namespace SnomedToSQLite.Services
             return true;
         }
 
+        public async Task<bool> WriteLanguageRefsetData(IEnumerable<LanguageRefsetModel> data)
+        {
+            string sql = @"INSERT INTO LanguageRefset (Id, EffectiveTime, Active, ModuleId, RefsetId, ReferencedComponentId, AcceptabilityId) 
+                         VALUES (@Id, @EffectiveTime, @Active, @ModuleId, @RefsetId, @ReferencedComponentId, @AcceptabilityId)";
+
+            await _db.InsertData(sql, data, "Default");
+
+            return true;
+        }
+
         public async Task GenerateTransitiveClosureTable(IEnumerable<RelationshipModel> relationships, ShellProgressBar.IProgressBar pbar)
         {
             pbar.Message = "Creating Adjacency Matrix";
             var stopwatch = Stopwatch.StartNew();
-            var adjacencyMatrix = CreateAdjacencyMatrix(relationships);
+            var adjacencyMatrix = _graphProcessingService.CreateAdjacencyMatrix(relationships);
             stopwatch.Stop();
             pbar.Tick($"Creating Adjacency Matrix took {stopwatch.ElapsedMilliseconds} milliseconds");
             await Task.Delay(500);
 
             pbar.Message = "Computing Transitive Closure table (Parallel)";
             stopwatch.Restart();
-            var transitiveClosureParallel = ComputeTransitiveClosureParallel(adjacencyMatrix);
+            var transitiveClosureParallel = _graphProcessingService.ComputeTransitiveClosureParallel(adjacencyMatrix);
+            stopwatch.Stop();
+            pbar.Tick($"Computing Transitive Closure table (Parallel) took {stopwatch.ElapsedMilliseconds} milliseconds");
+            await Task.Delay(500);
+
+            pbar.Message = "Creating Transitive Closure table in SQLite database";
+            await CreateTransitiveClosureTable("Default");
+            await Task.Delay(500);
+
+            pbar.Message = "Write to Transitive Closure table in SQLite database";
+            await WriteTransitiveClosureToDB(transitiveClosureParallel, "Default");
+            pbar.Tick("Write to Transitive Closure table in SQLite database - completed");
+            await Task.Delay(500);
+
+            pbar.Message = "Creating indexes";
+            await CreateIndexes("Default");
+            pbar.Tick("Creating indexes - completed");
+            await Task.Delay(500);
+
+            pbar.Message = "Creating views";
+            await CreateViews("Default");
+            pbar.Tick("Creating views - completed");
+            await Task.Delay(500);
+        }
+
+        public async Task GenerateTransitiveClosureTable(IEnumerable<RelationshipModel> relationships, IEnumerable<ConceptModel> concepts, IEnumerable<DescriptionModel> descriptions, IEnumerable<LanguageRefsetModel> languageRefsets, ShellProgressBar.IProgressBar pbar)
+        {
+            pbar.Message = "Creating Adjacency Matrix";
+            var stopwatch = Stopwatch.StartNew();
+            var adjacencyMatrix = _graphProcessingService.CreateAdjacencyMatrix(relationships, concepts, descriptions, languageRefsets);
+            stopwatch.Stop();
+            pbar.Tick($"Creating Adjacency Matrix took {stopwatch.ElapsedMilliseconds} milliseconds");
+            await Task.Delay(500);
+
+            pbar.Message = "Computing Transitive Closure table (Parallel)";
+            stopwatch.Restart();
+            var transitiveClosureParallel = _graphProcessingService.ComputeTransitiveClosureParallel(adjacencyMatrix);
             stopwatch.Stop();
             pbar.Tick($"Computing Transitive Closure table (Parallel) took {stopwatch.ElapsedMilliseconds} milliseconds");
             await Task.Delay(500);
@@ -178,89 +225,6 @@ namespace SnomedToSQLite.Services
                         );";
 
             await _db.SaveData(sql, new { }, connectionStringName);
-        }
-
-
-        public Dictionary<long, Dictionary<long, long>> CreateAdjacencyMatrix(IEnumerable<RelationshipModel> relationships)
-        {
-            var adjacencyMatrix = new Dictionary<long, Dictionary<long, long>>();
-
-            foreach (var relationship in relationships)
-            {
-                if (relationship.TypeId != 116680003)
-                    continue; // Skip non-"is a" relationships
-
-                if (!adjacencyMatrix.ContainsKey(relationship.SourceId))
-                {
-                    adjacencyMatrix[relationship.SourceId] = new Dictionary<long, long>();
-                }
-
-                adjacencyMatrix[relationship.SourceId][relationship.DestinationId] = relationship.TypeId;
-            }
-
-            return adjacencyMatrix;
-        }
-
-        public Dictionary<long, HashSet<long>> ComputeTransitiveClosure(Dictionary<long, Dictionary<long, long>> adjacencyMatrix)
-        {
-            var transitiveClosure = new Dictionary<long, HashSet<long>>();
-
-            foreach (var node in adjacencyMatrix.Keys)
-            {
-                if (!transitiveClosure.ContainsKey(node))
-                    transitiveClosure[node] = new HashSet<long>();
-
-                var queue = new Queue<long>(adjacencyMatrix[node].Keys);
-                while (queue.Any())
-                {
-                    var nextNode = queue.Dequeue();
-                    if (adjacencyMatrix.ContainsKey(nextNode))
-                    {
-                        foreach (var transitNode in adjacencyMatrix[nextNode].Keys)
-                        {
-                            if (!transitiveClosure[node].Contains(transitNode))
-                            {
-                                transitiveClosure[node].Add(transitNode);
-                                queue.Enqueue(transitNode);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return transitiveClosure;
-        }
-
-        public Dictionary<long, HashSet<long>> ComputeTransitiveClosureParallel(Dictionary<long, Dictionary<long, long>> adjacencyMatrix)
-        {
-            var transitiveClosure = new ConcurrentDictionary<long, HashSet<long>>();
-
-            Parallel.ForEach(adjacencyMatrix.Keys, node =>
-            {
-                if (!transitiveClosure.ContainsKey(node))
-                    transitiveClosure[node] = new HashSet<long>();
-
-                var queue = new ConcurrentQueue<long>(adjacencyMatrix[node].Keys);
-                while (!queue.IsEmpty)
-                {
-                    if (queue.TryDequeue(out var nextNode))
-                    {
-                        if (adjacencyMatrix.TryGetValue(nextNode, out var transitNodes))
-                        {
-                            foreach (var transitNode in transitNodes.Keys)
-                            {
-                                if (!transitiveClosure[node].Contains(transitNode))
-                                {
-                                    transitiveClosure[node].Add(transitNode);
-                                    queue.Enqueue(transitNode);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            return transitiveClosure.ToDictionary(kvp => kvp.Key, kvp => new HashSet<long>(kvp.Value));
         }
     }
 }

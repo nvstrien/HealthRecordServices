@@ -36,9 +36,10 @@ namespace SnomedToSQLite
                             services.AddScoped<IImportService, ImportService>();
                             services.AddScoped<ISQLiteDatabaseService, SQLiteDatabaseService>();
                             services.AddScoped<ISqlDataAccess, SQLiteDataAccess>();
-                            services.AddScoped<IConvertRf2ToSQLiteRunner,  ConvertRf2ToSQLiteRunner>();
+                            services.AddScoped<IConvertRf2ToSQLiteRunner,  ConvertRf2FullReleaseToSQLiteRunner>();
+                            services.AddTransient<IGraphProcessingService,  GraphProcessingService>();
                             services.AddSingleton<MenuOptions>();
-                            services.AddSingleton<IMenuOption, ConvertRf2ToSQLiteOption>();
+                            services.AddSingleton<IMenuOption, ConvertRf2FullReleaseToSQLiteOption>();
                             services.AddSingleton<IConnectionStringService,  ConnectionStringService>();
                             //services.Configure<MySettings>(context.Configuration.GetSection("MySettings"));
                             //services.AddSingleton(resolver => resolver.GetRequiredService<IOptions<MySettings>>().Value);
