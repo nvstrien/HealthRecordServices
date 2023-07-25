@@ -100,10 +100,6 @@ Group BY SourceTerm
 
 Note: You can view the contents of the SQLite database and execute queries using a SQLite database viewer such as [DB Browser for SQLite](https://sqlitebrowser.org/).
 
-## Contributing
-
-Contributions are welcome! Please read the [contributing guide](CONTRIBUTING.md) to get started.
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
