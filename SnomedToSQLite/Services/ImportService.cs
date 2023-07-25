@@ -78,6 +78,30 @@ namespace SnomedToSQLite.Services
             return records;
         }
 
+        public IEnumerable<LanguageRefsetModel> ImportRf2LanguageRefset(string rf2source)
+        {
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                HasHeaderRecord = true,
+                Delimiter = "\t",
+            };
+
+            using var reader = new StreamReader(rf2source);
+
+            using var csv = new CsvReader(reader, config);
+
+            csv.Context.RegisterClassMap<LanguageRefsetModelMap>();
+
+            try
+            {
+                var records = csv.GetRecords<LanguageRefsetModel>().ToList();
+                return records;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
     }
 
 }

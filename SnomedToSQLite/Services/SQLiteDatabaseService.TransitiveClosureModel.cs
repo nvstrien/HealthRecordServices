@@ -7,19 +7,5 @@
             public long SourceId { get; set; }
             public long DestinationId { get; set; }
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     }
 }
