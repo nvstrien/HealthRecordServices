@@ -79,6 +79,14 @@ namespace SnomedToSQLite.Services
             return true;
         }
 
+        public async Task<IEnumerable<RelationshipModel>> GetRelationshipData()
+        {
+            string sql = "SELECT * FROM Relationship";
+            var result = await _db.LoadData<RelationshipModel, dynamic>(sql, new { }, "Default");
+            return result;
+        }
+
+
         public async Task<bool> WriteLanguageRefsetData(IEnumerable<LanguageRefsetModel> data)
         {
             string sql = @"INSERT INTO LanguageRefset (Id, EffectiveTime, Active, ModuleId, RefsetId, ReferencedComponentId, AcceptabilityId) 
@@ -91,16 +99,11 @@ namespace SnomedToSQLite.Services
 
         public async Task GenerateTransitiveClosureTable(IEnumerable<RelationshipModel> relationships, ShellProgressBar.IProgressBar pbar)
         {
-            pbar.Message = "Creating Adjacency Matrix";
             var stopwatch = Stopwatch.StartNew();
-            var adjacencyMatrix = _graphProcessingService.CreateAdjacencyMatrix(relationships);
-            stopwatch.Stop();
-            pbar.Tick($"Creating Adjacency Matrix took {stopwatch.ElapsedMilliseconds} milliseconds");
-            await Task.Delay(500);
 
             pbar.Message = "Computing Transitive Closure table (Parallel)";
             stopwatch.Restart();
-            var transitiveClosureParallel = _graphProcessingService.ComputeTransitiveClosureParallel(adjacencyMatrix);
+            var transitiveClosureParallel = await _graphProcessingService.ComputeTransitiveClosureAsync(relationships, pbar);
             stopwatch.Stop();
             pbar.Tick($"Computing Transitive Closure table (Parallel) took {stopwatch.ElapsedMilliseconds} milliseconds");
             await Task.Delay(500);
@@ -115,7 +118,7 @@ namespace SnomedToSQLite.Services
             await Task.Delay(500);
 
             pbar.Message = "Creating indexes";
-            await CreateIndexes("Default");
+            await CreateIndexes("Default", pbar);
             pbar.Tick("Creating indexes - completed");
             await Task.Delay(500);
 
@@ -125,59 +128,48 @@ namespace SnomedToSQLite.Services
             await Task.Delay(500);
         }
 
-        public async Task GenerateTransitiveClosureTable(IEnumerable<RelationshipModel> relationships, IEnumerable<ConceptModel> concepts, IEnumerable<DescriptionModel> descriptions, IEnumerable<LanguageRefsetModel> languageRefsets, ShellProgressBar.IProgressBar pbar)
-        {
-            pbar.Message = "Creating Adjacency Matrix";
-            var stopwatch = Stopwatch.StartNew();
-            var adjacencyMatrix = _graphProcessingService.CreateAdjacencyMatrix(relationships, concepts, descriptions, languageRefsets);
-            stopwatch.Stop();
-            pbar.Tick($"Creating Adjacency Matrix took {stopwatch.ElapsedMilliseconds} milliseconds");
-            await Task.Delay(500);
-
-            pbar.Message = "Computing Transitive Closure table (Parallel)";
-            stopwatch.Restart();
-            var transitiveClosureParallel = _graphProcessingService.ComputeTransitiveClosureParallel(adjacencyMatrix);
-            stopwatch.Stop();
-            pbar.Tick($"Computing Transitive Closure table (Parallel) took {stopwatch.ElapsedMilliseconds} milliseconds");
-            await Task.Delay(500);
-
-            pbar.Message = "Creating Transitive Closure table in SQLite database";
-            await CreateTransitiveClosureTable("Default");
-            await Task.Delay(500);
-
-            pbar.Message = "Write to Transitive Closure table in SQLite database";
-            await WriteTransitiveClosureToDB(transitiveClosureParallel, "Default");
-            pbar.Tick("Write to Transitive Closure table in SQLite database - completed");
-            await Task.Delay(500);
-
-            pbar.Message = "Creating indexes";
-            await CreateIndexes("Default");
-            pbar.Tick("Creating indexes - completed");
-            await Task.Delay(500);
-
-            pbar.Message = "Creating views";
-            await CreateViews("Default");
-            pbar.Tick("Creating views - completed");
-            await Task.Delay(500);
-        }
-
-        private async Task CreateIndexes(string connectionStringName)
+        /// <summary>
+        /// Asynchronously creates indexes on the Description, LanguageRefset, Relationship, and TransitiveClosure tables to improve query performance.
+        /// </summary>
+        /// <remarks>
+        /// This method will issue CREATE INDEX commands for indexes that do not already exist. 
+        /// Indexes are created on various columns of the Description, LanguageRefset, Relationship, and TransitiveClosure tables, based on the columns used in common queries. 
+        /// Indexes can significantly improve read performance by reducing the amount of time it takes to look up values.
+        /// However, they also consume additional storage space. As this method is intended for a read-only database, the trade-off is generally favorable.
+        /// </remarks>
+        /// <param name="connectionStringName">The name of the connection string for the database where the indexes will be created.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains no value.</returns>
+        private async Task CreateIndexes(string connectionStringName, ShellProgressBar.IProgressBar pbar)
         {
             string[] indexCommands = new string[]
             {
-                "CREATE INDEX IF NOT EXISTS idx_relationship_sourceid ON Relationship(SourceId);",
-                "CREATE INDEX IF NOT EXISTS idx_relationship_destinationid ON Relationship(DestinationId);",
-                "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_sourceid ON TransitiveClosure(SourceId);",
-                "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_destinationid ON TransitiveClosure(DestinationId);",
+                "DROP INDEX IF EXISTS idx_description_conceptid;",
                 "CREATE INDEX IF NOT EXISTS idx_description_conceptid ON Description(ConceptId);",
-                "CREATE INDEX IF NOT EXISTS idx_description_id ON Description (Id ASC)",
-                "CREATE INDEX IF NOT EXISTS idx_description_term ON Description (Term ASC)",
-                "CREATE INDEX IF NOT EXISTS idx_langrefset_acceptabilityId ON LanguageRefset (AcceptabilityId ASC)",
-                "CREATE INDEX IF NOT EXISTS idx_langrefset_referencedcomponentid ON LanguageRefset (ReferencedComponentId ASC)",
+                "DROP INDEX IF EXISTS idx_description_id;",
+                "CREATE INDEX IF NOT EXISTS idx_description_id ON Description (Id);",
+                "DROP INDEX IF EXISTS idx_description_languagecode;",
+                "CREATE INDEX IF NOT EXISTS idx_description_languagecode ON Description (LanguageCode);",
+                "DROP INDEX IF EXISTS idx_description_term;",
+                "CREATE INDEX IF NOT EXISTS idx_description_term ON Description (Term);",
+                "DROP INDEX IF EXISTS idx_langrefset_acceptabilityId;",
+                "CREATE INDEX IF NOT EXISTS idx_langrefset_acceptabilityId ON LanguageRefset (AcceptabilityId);",
+                "DROP INDEX IF EXISTS idx_langrefset_referencedcomponentid;",
+                "CREATE INDEX IF NOT EXISTS idx_langrefset_referencedcomponentid ON LanguageRefset (ReferencedComponentId);",
+                "DROP INDEX IF EXISTS idx_relationship_destinationid;",
+                "CREATE INDEX IF NOT EXISTS idx_relationship_destinationid ON Relationship(DestinationId);",
+                "DROP INDEX IF EXISTS idx_relationship_sourceid;",
+                "CREATE INDEX IF NOT EXISTS idx_relationship_sourceid ON Relationship(SourceId);",
+                "DROP INDEX IF EXISTS idx_transitiveclosure_destinationid;",
+                "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_destinationid ON TransitiveClosure(DestinationId);",
+                "DROP INDEX IF EXISTS idx_transitiveclosure_sourceid;",
+                "CREATE INDEX IF NOT EXISTS idx_transitiveclosure_sourceid ON TransitiveClosure(SourceId);",
             };
+
+            pbar.MaxTicks += indexCommands.Length;
 
             foreach (var sql in indexCommands)
             {
+                pbar.Tick(sql);
                 await _db.SaveData(sql, new { }, connectionStringName);
             }
         }
@@ -186,8 +178,10 @@ namespace SnomedToSQLite.Services
         {
             string[] sqlCommands = new string[]
             {
+                "DROP VIEW IF EXISTS Subsumption;",
                 "CREATE VIEW Subsumption AS SELECT tc.SourceId, ds.Term as SourceTerm, tc.DestinationId, dt.Term as TargetTerm FROM TransitiveClosure tc LEFT JOIN Description ds ON tc.SourceId = ds.ConceptId LEFT JOIN Description dt ON tc.DestinationId = dt.ConceptId;",
             };
+
 
             foreach (var sql in sqlCommands)
             {
@@ -221,14 +215,20 @@ namespace SnomedToSQLite.Services
 
         private async Task CreateTransitiveClosureTable(string connectionStringName)
         {
-            string sql = @"
-                        CREATE TABLE IF NOT EXISTS TransitiveClosure
-                        (
-                            SourceId INTEGER NOT NULL,
-                            DestinationId INTEGER NOT NULL
-                        );";
+            string[] sqlCommands = new string[]
+            {
+                "DROP TABLE IF EXISTS TransitiveClosure;",
+                @"CREATE TABLE IF NOT EXISTS TransitiveClosure
+                  (
+                      SourceId INTEGER NOT NULL,
+                      DestinationId INTEGER NOT NULL
+                  );"
+            };
 
-            await _db.SaveData(sql, new { }, connectionStringName);
+            foreach (var sql in sqlCommands)
+            {
+                await _db.SaveData(sql, new { }, connectionStringName);
+            }
         }
     }
 }

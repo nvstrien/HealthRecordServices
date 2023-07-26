@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+﻿using ShellProgressBar;
 
 using SnomedRF2Library.Models;
 
@@ -8,10 +8,10 @@ namespace SnomedToSQLite.Services
     {
         //Relationship properties
         private const long _isARelationshipTypeId = 116680003; // |is a|
-        
+
         //Description properties
         private const long _synonymTypeId = 900000000000013009; // |Synonym|
-        
+
         //Refset properties
         //private const long _nlRefsetId = 31000146106;
         //private const long _enGBRefsetId = 900000000000508004;
@@ -36,6 +36,21 @@ namespace SnomedToSQLite.Services
             }
 
             return adjacencyMatrix;
+        }
+
+
+        // Method to extract |is a| relationships from the RelationshipModel data
+        public Dictionary<long, HashSet<long>> GetIsARelationships(IEnumerable<RelationshipModel> relationships)
+        {
+            var isARelationships = relationships
+                .Where(relationship => relationship.TypeId == _isARelationshipTypeId && relationship.Active == true)
+                .GroupBy(relationship => relationship.SourceId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => new HashSet<long>(group.Select(relationship => relationship.DestinationId))
+                );
+
+            return isARelationships;
         }
 
         /// <summary>
@@ -80,158 +95,64 @@ namespace SnomedToSQLite.Services
         }
 
         /// <summary>
-        /// Creates an adjacency matrix representing the relationships between active concepts using preferred synonym descriptions.
+        /// Computes the transitive closure of the given relationships.
         /// </summary>
-        /// <param name="relationships">The enumerable of RelationshipModel instances.</param>
-        /// <param name="concepts">The enumerable of ConceptModel instances.</param>
-        /// <param name="descriptions">The enumerable of DescriptionModel instances.</param>
-        /// <param name="languageRefsets">The enumerable of LanguageRefsetModel instances.</param>
-        /// <returns>An adjacency matrix as a Dictionary of Dictionary, where the key of the outer dictionary is the source concept id, the key of the inner dictionary is the destination concept id, and the value of the inner dictionary is the relationship type id.</returns>
-        /// <exception cref="Exception">Throws any exceptions that may occur during processing.</exception>
-        public Dictionary<long, Dictionary<long, long>> CreateAdjacencyMatrix(IEnumerable<RelationshipModel> relationships, IEnumerable<ConceptModel> concepts, IEnumerable<DescriptionModel> descriptions, IEnumerable<LanguageRefsetModel> languageRefsets)
+        /// <param name="relationships">The relationships to compute the transitive closure for.</param>
+        /// <param name="pbar">A progress bar to update as the computation progresses.</param>
+        /// <returns>A dictionary where each key is a concept and the corresponding value is a set of all concepts that the key concept has a direct or indirect relationship with.</returns>
+        public async Task<Dictionary<long, HashSet<long>>> ComputeTransitiveClosureAsync(IEnumerable<RelationshipModel> relationships, IProgressBar pbar)
         {
-            try
+            // Get the active |is a| relationships
+            var isARelationships = GetIsARelationships(relationships);
+
+            // Set the maximum value for the progress bar
+            pbar.MaxTicks += isARelationships.Count();
+
+            // Initialize the transitive closure table
+            var transitiveClosureTable = new Dictionary<long, HashSet<long>>();
+
+            // Calculate the transitive closure table
+            foreach (var concept in isARelationships.Keys)
             {
-                // Getting all the active concept ids
-                var activeConceptIds = GetActiveConceptIds(concepts);
+                // Initialize the set of related concepts for this concept
+                transitiveClosureTable[concept] = new HashSet<long>();
 
-                // Grouping the descriptions by term and ordering by Effective Time
-                var descriptionsGroupedByTerm = GroupDescriptionsByTerm(descriptions);
+                // Add all concepts that this concept has a direct or indirect relationship with to the set
+                AddTransitiveRelationships(isARelationships, transitiveClosureTable, concept, concept);
 
-                // Getting all the preferred description ids
-                var preferredDescriptionIds = GetPreferredDescriptionIds(languageRefsets, descriptionsGroupedByTerm);
+                // Update the progress bar
+                pbar.Tick();
 
-                // Create the adjacency matrix
-                var adjacencyMatrix = new Dictionary<long, Dictionary<long, long>>();
-
-                foreach (var relationship in relationships)
-                {
-                    // Ignore relationships with wrong type id
-                    if (relationship.TypeId != _isARelationshipTypeId)
-                        continue;
-
-                    // Ignore inactive relationships or relationships with inactive source or destination concepts
-                    if (!relationship.Active || !activeConceptIds.Contains(relationship.SourceId) || !activeConceptIds.Contains(relationship.DestinationId))
-                        continue;
-
-                    var destinationKey = Tuple.Create(relationship.DestinationId, relationship.TypeId);
-
-                    // Ignore relationships with non-preferred destination descriptions
-                    if (!preferredDescriptionIds.Contains(destinationKey))
-                        continue;
-
-                    // Add the source concept to the adjacency matrix if it doesn't already exist
-                    if (!adjacencyMatrix.ContainsKey(relationship.SourceId))
-                    {
-                        adjacencyMatrix[relationship.SourceId] = new Dictionary<long, long>();
-                    }
-
-                    // Map the source concept to the destination concept in the adjacency matrix
-                    adjacencyMatrix[relationship.SourceId][relationship.DestinationId] = relationship.TypeId;
-                }
-
-                return adjacencyMatrix;
+                // Yield to prevent UI freezing
+                await Task.Yield();
             }
-            catch (Exception ex)
-            {
-                throw;
-            }
+
+            return transitiveClosureTable;
         }
 
         /// <summary>
-        /// Computes the transitive closure of an adjacency matrix using a breadth-first search.
+        /// Recursively adds all concepts that the original concept has a direct or indirect relationship with to the transitive closure table.
+        /// This method implements a depth-first traversal of the graph represented by the |is a| relationships to compute the transitive closure.
         /// </summary>
-        /// <param name="adjacencyMatrix">The adjacency matrix represented as a Dictionary.</param>
-        /// <returns>Returns the transitive closure represented as a Dictionary.</returns>
-        public Dictionary<long, HashSet<long>> ComputeTransitiveClosure(Dictionary<long, Dictionary<long, long>> adjacencyMatrix)
+        /// <param name="isARelationships">The |is a| relationships.</param>
+        /// <param name="transitiveClosureTable">The transitive closure table to update.</param>
+        /// <param name="originalConcept">The concept to add the relationships for.</param>
+        /// <param name="currentConcept">The concept currently being processed.</param>
+        private void AddTransitiveRelationships(Dictionary<long, HashSet<long>> isARelationships, Dictionary<long, HashSet<long>> transitiveClosureTable, long originalConcept, long currentConcept)
         {
-            // Initialize the transitive closure as an empty dictionary.
-            var transitiveClosure = new Dictionary<long, HashSet<long>>();
+            // If the current concept has no |is a| relationships, return immediately
+            if (!isARelationships.ContainsKey(currentConcept)) return;
 
-            // Iterate over all nodes in the adjacency matrix.
-            foreach (var node in adjacencyMatrix.Keys)
+            // For each concept that the current concept has a |is a| relationship with
+            foreach (var relatedConcept in isARelationships[currentConcept])
             {
-                // If the current node is not yet in the transitive closure, add it.
-                if (!transitiveClosure.ContainsKey(node))
-                    transitiveClosure[node] = new HashSet<long>();
-
-                // Initialize a queue with the successors of the current node.
-                var queue = new Queue<long>(adjacencyMatrix[node].Keys);
-
-                // While there are nodes in the queue...
-                while (queue.Any())
+                // If the related concept has not already been added to the set of related concepts for the original concept
+                if (transitiveClosureTable[originalConcept].Add(relatedConcept))
                 {
-                    // Dequeue the next node.
-                    var nextNode = queue.Dequeue();
-
-                    // If the dequeued node is in the adjacency matrix...
-                    if (adjacencyMatrix.ContainsKey(nextNode))
-                    {
-                        // Add all of its successors to the transitive closure of the current node,
-                        // and enqueue them for further processing.
-                        foreach (var transitNode in adjacencyMatrix[nextNode].Keys)
-                        {
-                            if (!transitiveClosure[node].Contains(transitNode))
-                            {
-                                transitiveClosure[node].Add(transitNode);
-                                queue.Enqueue(transitNode);
-                            }
-                        }
-                    }
+                    // Recursively add all concepts that the related concept has a direct or indirect relationship with to the set
+                    AddTransitiveRelationships(isARelationships, transitiveClosureTable, originalConcept, relatedConcept);
                 }
             }
-
-            // Return the computed transitive closure.
-            return transitiveClosure;
         }
-
-        /// <summary>
-        /// Computes the transitive closure of an adjacency matrix using a parallel breadth-first search.
-        /// </summary>
-        /// <param name="adjacencyMatrix">The adjacency matrix represented as a Dictionary.</param>
-        /// <returns>Returns the transitive closure represented as a Dictionary.</returns>
-        public Dictionary<long, HashSet<long>> ComputeTransitiveClosureParallel(Dictionary<long, Dictionary<long, long>> adjacencyMatrix)
-        {
-            // Initialize the transitive closure as a concurrent dictionary to allow parallel updates.
-            var transitiveClosure = new ConcurrentDictionary<long, HashSet<long>>();
-
-            // Process all nodes in the adjacency matrix in parallel.
-            Parallel.ForEach(adjacencyMatrix.Keys, node =>
-            {
-                // If the current node is not yet in the transitive closure, add it.
-                if (!transitiveClosure.ContainsKey(node))
-                    transitiveClosure[node] = new HashSet<long>();
-
-                // Initialize a concurrent queue with the successors of the current node.
-                var queue = new ConcurrentQueue<long>(adjacencyMatrix[node].Keys);
-
-                // While there are nodes in the queue...
-                while (!queue.IsEmpty)
-                {
-                    // Attempt to dequeue the next node.
-                    if (queue.TryDequeue(out var nextNode))
-                    {
-                        // If the dequeued node is in the adjacency matrix...
-                        if (adjacencyMatrix.TryGetValue(nextNode, out var transitNodes))
-                        {
-                            // Add all of its successors to the transitive closure of the current node,
-                            // and enqueue them for further processing.
-                            foreach (var transitNode in transitNodes.Keys)
-                            {
-                                if (!transitiveClosure[node].Contains(transitNode))
-                                {
-                                    transitiveClosure[node].Add(transitNode);
-                                    queue.Enqueue(transitNode);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Convert the concurrent dictionary back to a regular dictionary for the result.
-            return transitiveClosure.ToDictionary(kvp => kvp.Key, kvp => new HashSet<long>(kvp.Value));
-        }
-
     }
 }

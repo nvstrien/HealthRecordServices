@@ -42,6 +42,7 @@ namespace SnomedToSQLite
                             services.AddSingleton<MenuOptions>();
                             services.AddSingleton<IMenuOption, ConvertRf2FullReleaseToSQLiteOption>();
                             services.AddSingleton<IMenuOption, ConvertRf2SnapshotReleaseToSQLiteOption>();
+                            services.AddSingleton<IMenuOption, CreateTransitiveClosureTableFromSQLiteDB>();
                             services.AddSingleton<IConnectionStringService, ConnectionStringService>();
                             //services.Configure<MySettings>(context.Configuration.GetSection("MySettings"));
                             //services.AddSingleton(resolver => resolver.GetRequiredService<IOptions<MySettings>>().Value);

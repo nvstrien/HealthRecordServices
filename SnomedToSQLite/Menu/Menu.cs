@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-
-namespace SnomedToSQLite.Menu
+﻿namespace SnomedToSQLite.Menu
 {
     public class MenuUI
     {

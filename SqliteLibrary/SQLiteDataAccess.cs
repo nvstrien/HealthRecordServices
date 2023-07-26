@@ -157,7 +157,7 @@ namespace SqliteLibrary
 
                 transaction.Commit();
 
-                _logger.LogInformation("Inserted {ItemCount} items into the database using SQL: {Sql}", iteration, sql);
+                //_logger.LogInformation("Inserted {ItemCount} items into the database using SQL: {Sql}", iteration, sql);
 
                 return insertedIds;
             }

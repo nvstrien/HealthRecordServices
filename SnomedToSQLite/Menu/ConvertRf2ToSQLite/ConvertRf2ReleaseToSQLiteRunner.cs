@@ -42,10 +42,8 @@ namespace SnomedToSQLite.Menu.ConvertRf2ToSQLite
             List<string> languageRefsetPaths = _fileFinder.FindFilesInDirectory(rootFilePath, $"*Language{filePrefix}*.txt");
 
             _conversionHelper.WriteColoredMessage("---------------------------", ConsoleColor.Green);
-            _conversionHelper.WriteColoredMessage("\nStarting conversion process...", ConsoleColor.Green);
+            _conversionHelper.WriteColoredMessage("Starting conversion process...", ConsoleColor.Green);
             _conversionHelper.WriteColoredMessage("---------------------------", ConsoleColor.Green);
-            _conversionHelper.WriteColoredMessage($"SQLite database will be created in {rootFilePath}\\{_conversionHelper.GetDbName(conversionType)}.", ConsoleColor.Cyan);
-            _conversionHelper.WriteColoredMessage("---------------------------\n", ConsoleColor.Green);
 
             _conversionHelper.WriteColoredMessage("Files found for conversion:", ConsoleColor.Yellow);
             _conversionHelper.WriteColoredMessage($"Concept file:\n{conceptPath}\n", ConsoleColor.White);
@@ -65,6 +63,8 @@ namespace SnomedToSQLite.Menu.ConvertRf2ToSQLite
                 _conversionHelper.WriteColoredMessage($"{languagePath}\n", ConsoleColor.White);
             }
 
+            _conversionHelper.WriteColoredMessage("---------------------------", ConsoleColor.Green);
+            _conversionHelper.WriteColoredMessage($"SQLite database will be created in {rootFilePath}\\{_conversionHelper.GetDbName(conversionType)}.", ConsoleColor.Cyan);
             _conversionHelper.WriteColoredMessage("---------------------------\n", ConsoleColor.Green);
 
             await ConvertRf2ToSQLIte(rootFilePath, conceptPath, descriptionPaths, relationshipPath, languageRefsetPaths, conversionType);
@@ -178,15 +178,15 @@ namespace SnomedToSQLite.Menu.ConvertRf2ToSQLite
             pbar.Tick("Completed: Generating transitive closure table");
         }
 
-        //private async Task WriteRelationshipDataAndGenerateClosure(IEnumerable<RelationshipModel> relationshipData, IEnumerable<ConceptModel> concepts, IEnumerable<DescriptionModel> descriptions, IEnumerable<LanguageRefsetModel> languageRefsets, IProgressBar pbar)
-        //{
-        //    pbar.Message = "Writing relationship data...";
-        //    await _databaseService.WriteRelationshipData(relationshipData);
-        //    pbar.Tick("Completed: Writing relationship data...");
 
-        //    //pbar.Message = "Generating transitive closure table";
-        //    //await _databaseService.GenerateTransitiveClosureTable(relationshipData, concepts, descriptions, languageRefsets, pbar);
-        //    //pbar.Tick("Completed: Generating transitive closure table");
-        //}
+        public async Task CreateTransitiveClosureTableFromDB(string filePath, IProgressBar pbar)
+        {
+            _conversionHelper.WriteColoredMessage("Loading data:\n------------------------\n", ConsoleColor.Green);
+            var relationshipData = await _databaseService.GetRelationshipData();
+            var relationsCount = relationshipData.Count();
+            _conversionHelper.WriteColoredMessage($"Loaded {relationsCount} relations:\n------------------------\n", ConsoleColor.Green);
+
+            await CreateTransitiveClosureTable(relationshipData, pbar);
+        }
     }
 }
